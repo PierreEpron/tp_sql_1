@@ -231,3 +231,172 @@ GROUP BY PRODUCT_TYPE, PRODUCT_FAMILY;
 
 SELECT COUNT(*) FROM produits;
 SELECT * FROM produits LIMIT 100;
+
+DROP TABLE IF EXISTS client_full;
+CREATE TABLE client_full
+(
+	ID INT,
+	SHIPPING_MODE VARCHAR(100),
+	SHIPPING_PRICE VARCHAR(100),
+	WARRANTIES_FLG VARCHAR(100),
+	WARRANTIES_PRICE VARCHAR(100),
+	CARD_PAYMENT INT(1),
+	COUPON_PAYMENT INT(1),
+	RSP_PAYMENT INT(1),
+	WALLET_PAYMENT INT(1),
+	PRICECLUB_STATUS VARCHAR(100),
+	REGISTRATION_DATE VARCHAR(100),
+	PURCHASE_COUNT VARCHAR(100),
+	BUYER_BIRTHDAY_DATE VARCHAR(100),
+	BUYER_DEPARTMENT INT,
+	BUYING_DATE VARCHAR(100),
+	SELLER_SCORE_COUNT VARCHAR(100),
+	SELLER_SCORE_AVERAGE INT,
+	SELLER_COUNTRY VARCHAR(100),
+	SELLER_DEPARTMENT VARCHAR(100),
+	PRODUCT_TYPE VARCHAR(100),
+	PRODUCT_FAMILY VARCHAR(100),
+	ITEM_PRICE VARCHAR(100),
+	COUNTRY_KEY VARCHAR(100),
+	CARACT VARCHAR(100)
+);
+
+LOAD DATA LOCAL INFILE 'C:/Users/Utilisateur/Desktop/dev/sql/tp_sql_1/Base_eval.csv' 
+INTO TABLE data.client_full 
+FIELDS TERMINATED BY ';'
+IGNORE 1 LINES;
+
+SELECT COUNT(*) FROM client_full;
+SELECT * FROM client_full LIMIT 100;
+
+-- Je cherche à connaître les cas que je dois traiter dans mon CASE
+
+SELECT 
+	t_princ.ITEM_PRICE AS t_princ_ITEM_PRICE, 
+	t_compl.ITEM_PRICE AS t_compl_ITEM_PRICE
+FROM
+	(SELECT * FROM client_full WHERE UPPER(CARACT) LIKE '%PRINC%') AS t_princ,
+	(SELECT * FROM client_full WHERE UPPER(CARACT) LIKE '%COMPL%') AS t_compl
+WHERE t_princ.ID = t_compl.ID
+GROUP BY t_princ.ITEM_PRICE, t_compl.ITEM_PRICE
+
+-- p(x<y), c(x<y)
+-- p(x<y), c(x)
+-- p(<x),  c(<x)
+-- p(<x),  c(x)
+
+DROP TABLE IF EXISTS vente_finale;
+CREATE TABLE vente_finale AS
+SELECT 
+	t_princ.ID,
+	t_princ.SHIPPING_MODE,
+	t_princ.SHIPPING_PRICE,
+	t_princ.WARRANTIES_FLG,
+	t_princ.WARRANTIES_PRICE,
+	t_princ.CARD_PAYMENT,
+	t_princ.COUPON_PAYMENT,
+	t_princ.RSP_PAYMENT,
+	t_princ.WALLET_PAYMENT,
+	t_princ.PRICECLUB_STATUS,
+	t_princ.REGISTRATION_DATE,
+	t_princ.PURCHASE_COUNT,
+	t_princ.BUYER_BIRTHDAY_DATE,
+	t_princ.BUYER_DEPARTMENT,
+	t_princ.BUYING_DATE,
+	t_princ.SELLER_SCORE_COUNT,
+	t_princ.SELLER_SCORE_AVERAGE,
+	t_princ.SELLER_COUNTRY,
+	t_princ.SELLER_DEPARTMENT,
+	t_princ.PRODUCT_TYPE,
+	t_princ.PRODUCT_FAMILY,
+	CASE
+		WHEN -- p(<x),  c(<x)
+			INSTR(t_princ.ITEM_PRICE, "<") <> 0 AND 
+			SUBSTR(t_princ.ITEM_PRICE, 1, INSTR(t_princ.ITEM_PRICE, "<") - 1) = "" AND
+			INSTR(t_compl.ITEM_PRICE, "<") <> 0 AND 
+			SUBSTR(t_compl.ITEM_PRICE, 1, INSTR(t_compl.ITEM_PRICE, "<") - 1) = ""			
+			THEN 
+				CONCAT(
+					'<',
+					(
+						SUBSTR(t_princ.ITEM_PRICE, INSTR(t_princ.ITEM_PRICE, "<") + 1) +
+						SUBSTR(t_compl.ITEM_PRICE, INSTR(t_compl.ITEM_PRICE, "<") + 1))
+					)
+		WHEN -- p(x<y), c(x<y)
+			INSTR(t_princ.ITEM_PRICE, "<") <> 0 AND
+			INSTR(t_compl.ITEM_PRICE, "<") <> 0 			
+			THEN 
+				CONCAT(
+					(
+						SUBSTR(t_princ.ITEM_PRICE, 1, INSTR(t_princ.ITEM_PRICE, "<") - 1) +
+						SUBSTR(t_compl.ITEM_PRICE, 1, INSTR(t_compl.ITEM_PRICE, "<") - 1)
+				    ), 
+					'<', 
+					(
+						SUBSTR(t_princ.ITEM_PRICE, INSTR(t_princ.ITEM_PRICE, "<") + 1) + 
+						SUBSTR(t_compl.ITEM_PRICE, INSTR(t_compl.ITEM_PRICE, "<") + 1)
+					)
+				)
+		WHEN -- p(<x),  c(x)
+			INSTR(t_princ.ITEM_PRICE, "<") <> 0 AND 
+			SUBSTR(t_princ.ITEM_PRICE, 1, INSTR(t_princ.ITEM_PRICE, "<") - 1) = ""
+			THEN
+				CONCAT(
+					'<',
+					(
+						SUBSTR(t_princ.ITEM_PRICE, INSTR(t_princ.ITEM_PRICE, "<") + 1) +
+						t_compl.ITEM_PRICE
+					)
+				)
+		ELSE -- p(x<y), c(x)
+			CONCAT(
+				(
+					SUBSTR(t_princ.ITEM_PRICE, 1, INSTR(t_princ.ITEM_PRICE, "<") - 1) +
+					t_compl.ITEM_PRICE
+				), 
+				'<', 
+				(
+					SUBSTR(t_princ.ITEM_PRICE, INSTR(t_princ.ITEM_PRICE, "<") + 1) + 
+					t_compl.ITEM_PRICE
+				)
+			)
+	END AS ITEM_PRICE,
+	t_princ.COUNTRY_KEY
+FROM 
+	(SELECT * FROM client_full WHERE UPPER(CARACT) LIKE '%PRINC%') AS t_princ,
+	(SELECT * FROM client_full WHERE UPPER(CARACT) LIKE '%COMPL%') AS t_compl
+WHERE t_princ.ID = t_compl.ID
+	UNION ALL -- J'utilise ca pour ajouter ceux qui n'ont pas été modifiés. On peut faire plus simple mais le when du haut m'a épuisé
+SELECT 	
+	ID,
+	SHIPPING_MODE,
+	SHIPPING_PRICE,
+	WARRANTIES_FLG,
+	WARRANTIES_PRICE,
+	CARD_PAYMENT,
+	COUPON_PAYMENT,
+	RSP_PAYMENT,
+	WALLET_PAYMENT,
+	PRICECLUB_STATUS,
+	REGISTRATION_DATE,
+	PURCHASE_COUNT,
+	BUYER_BIRTHDAY_DATE,
+	BUYER_DEPARTMENT,
+	BUYING_DATE,
+	SELLER_SCORE_COUNT,
+	SELLER_SCORE_AVERAGE,
+	SELLER_COUNTRY,
+	SELLER_DEPARTMENT,
+	PRODUCT_TYPE,
+	PRODUCT_FAMILY, 
+	ITEM_PRICE,
+	COUNTRY_KEY
+FROM client_full 
+WHERE client_full.ID NOT IN (
+	SELECT ID FROM client_full WHERE UPPER(CARACT) LIKE '%COMPL%'
+)
+ORDER BY ID;
+
+SELECT COUNT(*) FROM vente_finale;
+SELECT * FROM vente_finale LIMIT 100;
+
