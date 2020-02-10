@@ -1,3 +1,5 @@
+-- QUESTION 0 : Creer la base de données "data" et la table "client_0" comportant toutes les variables sauf la dernière
+
 DROP DATABASE IF EXISTS data;
 
 CREATE DATABASE data;
@@ -40,6 +42,7 @@ IGNORE 1 LINES;
 SELECT COUNT(*) FROM client_0;
 SELECT * FROM client_0 LIMIT 100;
 
+-- QUESTION 1 : Combien de doublons avons-nous
 
 SELECT COUNT(*) FROM (SELECT
 	ID,
@@ -94,16 +97,24 @@ GROUP BY
 	COUNTRY_KEY
 HAVING COUNT(*) > 1) AS t1;
 
+-- QUESTION 2 : Supprimer les doublons
+
 DROP TABLE IF EXISTS client_1;
 CREATE TABLE client_1 AS
-SELECT DISTINCT * FROM client_0
+SELECT DISTINCT * FROM client_0;
 
-SELECT COUNT(*) FROM client_1
+SELECT COUNT(*) FROM client_1;
 SELECT * FROM client_1 LIMIT 100;
+
+-- QUESTION 3 : Combien de vendeurs étrangers avons-nous
 
 SELECT COUNT(*)
 FROM client_1
 WHERE SELLER_DEPARTMENT = -1;
+
+-- QUESTION 4 : Creer la table vendeur1 composée des vendeurs étrangers, la table vendeur2 composée des vendeurs français 
+
+-- Vendeur 1
 
 DROP TABLE IF EXISTS vendeur_1;
 CREATE TABLE vendeur_1 AS
@@ -115,6 +126,8 @@ SELECT COUNT(*) FROM vendeur_1;
 SELECT * FROM vendeur_1 LIMIT 100;
 SELECT SELLER_COUNTRY FROM vendeur_1 GROUP BY SELLER_COUNTRY;
 
+-- Vendeur 2
+
 DROP TABLE IF EXISTS vendeur_2;
 CREATE TABLE vendeur_2 AS
 SELECT * 
@@ -125,6 +138,11 @@ SELECT COUNT(*) FROM vendeur_2;
 SELECT * FROM vendeur_2 LIMIT 100;
 SELECT SELLER_COUNTRY FROM vendeur_2 GROUP BY SELLER_COUNTRY;
 
+-- QUESTION 5 : Quelle est la probabilité pour un vendeur français d'avoir un bon score si la vente a lieu un lundi 
+
+-- J'ai simplifié en utilisant le mois de mai : seul mois de l'année 2017 qui commence par un lundi.
+-- En vrai je sais faire des CASE WHEN à rallonge, j'avais prévu de le faire après avoir finis le 11 mais je sature ...
+
 SELECT 
 	(SELECT COUNT(*)
 	FROM vendeur_2
@@ -132,9 +150,11 @@ SELECT
 		UPPER(BUYING_DATE) LIKE '%MAI%' AND 
 		SELLER_SCORE_AVERAGE > (SELECT AVG(SELLER_SCORE_AVERAGE) FROM vendeur_2)
 	)
-	 / COUNT(*) FROM vendeur_2
+	 / COUNT(*) AS PROBA FROM vendeur_2
 	 WHERE 
 		UPPER(BUYING_DATE) LIKE '%MAI%';
+
+-- QUESTION 6 : Quel est le montant total des articles vendus par famille de produits
 
 SELECT
 	PRODUCT_FAMILY,
@@ -146,6 +166,8 @@ SELECT
     END) AS PURCHASE_COUNT_AVG
 FROM client_1
 GROUP BY PRODUCT_FAMILY;
+
+-- QUESTION 7 : Entre nationaux et étrangers qui sont ceux qui ont le plus vendu d'articles
 
 SELECT
 	SUM(CASE 
@@ -161,6 +183,8 @@ SELECT
 		ELSE 0
 	END) FROM vendeur_2) AS FRENCH
 FROM vendeur_1;
+
+-- QUESTION 8 : Créer la table produit_1 (à partir de la table vendeur1) comportant le montant des types de produits par famille de produits
 
 DROP TABLE IF EXISTS produit_1;
 CREATE TABLE produit_1 AS
@@ -184,6 +208,8 @@ GROUP BY PRODUCT_TYPE, PRODUCT_FAMILY;
 SELECT COUNT(*) FROM produit_1;
 SELECT * FROM produit_1 LIMIT 100;
 
+-- QUESTION 9 : Créer la table produit_2 (à partir de la table vendeur2) comportant le montant des types de produits par famille de produits
+
 DROP TABLE IF EXISTS produit_2;
 CREATE TABLE produit_2 AS
 SELECT 
@@ -205,6 +231,8 @@ GROUP BY PRODUCT_TYPE, PRODUCT_FAMILY;
 
 SELECT COUNT(*) FROM produit_2;
 SELECT * FROM produit_2 LIMIT 100;
+
+-- QUESTION 10 : Créer la table produits (à partir des tables vendeur1 & vendeur2) comportant le montant des types de produits par famille de produits : pas de doublons svp
 
 DROP TABLE IF EXISTS produits;
 CREATE TABLE produits AS
@@ -231,6 +259,12 @@ GROUP BY PRODUCT_TYPE, PRODUCT_FAMILY;
 
 SELECT COUNT(*) FROM produits;
 SELECT * FROM produits LIMIT 100;
+
+-- QUESTION 11 : En considérant que le deuxième achat effectué par un client constitue un complément d'achat et non un doublon, 
+-- l'entreprise vous demande de créer à partir du fichier csv de départ une nouvelle table nommée vente_finale en affichant pas les 
+-- ventes complémentaires. Toutefois les montants affectés à ces ventes doivent figurer dans la nouvelles table
+
+-- Je recharge le csv dans client_full en gardant la dernière variables
 
 DROP TABLE IF EXISTS client_full;
 CREATE TABLE client_full
@@ -278,7 +312,7 @@ FROM
 	(SELECT * FROM client_full WHERE UPPER(CARACT) LIKE '%PRINC%') AS t_princ,
 	(SELECT * FROM client_full WHERE UPPER(CARACT) LIKE '%COMPL%') AS t_compl
 WHERE t_princ.ID = t_compl.ID
-GROUP BY t_princ.ITEM_PRICE, t_compl.ITEM_PRICE
+GROUP BY t_princ.ITEM_PRICE, t_compl.ITEM_PRICE;
 
 -- p(x<y), c(x<y)
 -- p(x<y), c(x)
